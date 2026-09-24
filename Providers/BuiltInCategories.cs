@@ -4,20 +4,11 @@ using GK2.MapMarkers.Api;
 
 namespace GK2.MapMarkers.Providers
 {
-    /// <summary>Where a rule category takes its candidates from.</summary>
-    internal enum RuleSource
-    {
-        /// <summary>World objects (WgoData); rules match the definition id / group / interaction type.</summary>
-        Wgo,
-        /// <summary>Scene transition GD points (doors, cave passages); rules match the point id.</summary>
-        TransitPoint
-    }
-
     /// <summary>Default definition of a config-driven marker category. Players can edit every value in the Mods menu.</summary>
     internal sealed class RuleCategory
     {
         public RuleCategory(string id, string name, string description, bool enabledByDefault, MarkerGlyph glyph, string color, string rules,
-            RuleSource source = RuleSource.Wgo, Action<WgoData, MapMarker> decorate = null)
+            Action<WgoData, MapMarker> decorate = null, params string[] legacyRules)
         {
             Id = id;
             Name = name;
@@ -26,8 +17,8 @@ namespace GK2.MapMarkers.Providers
             Glyph = glyph;
             Color = color;
             Rules = rules;
-            Source = source;
             Decorate = decorate;
+            LegacyRules = legacyRules ?? Array.Empty<string>();
         }
 
         public string Id { get; }
@@ -37,16 +28,24 @@ namespace GK2.MapMarkers.Providers
         public MarkerGlyph Glyph { get; }
         public string Color { get; }
         public string Rules { get; }
-        public RuleSource Source { get; }
 
         /// <summary>Optional per-object tweak (label suffix, fading) applied after a WGO matched.</summary>
         public Action<WgoData, MapMarker> Decorate { get; }
+
+        /// <summary>
+        /// Defaults shipped by earlier versions. A saved value equal to one of these was never edited by the
+        /// player, so it is upgraded to the current <see cref="Rules"/> instead of being kept forever.
+        /// </summary>
+        public IReadOnlyList<string> LegacyRules { get; }
     }
 
     /// <summary>
-    /// Built-in categories. Ids were verified against the game's balance data (build 25467846);
-    /// deliberately excluded because they are far too numerous to be useful: trees (tree_chop_*),
-    /// bushes (bush_chop_*), grass and decor props.
+    /// Built-in categories. Ids were verified against the WGODef table extracted from GameBalance
+    /// (build 25467846). Deliberately not offered because they are far too numerous: trees, bushes,
+    /// stumps, grass, trash pots and other decor.
+    /// Pitfalls: iron_ore_* are containers (the ore node is common_ores_*); group:stones also contains
+    /// junk and barrels; four fishing reservoir ids contain a space ("fishing_ place_home"), and several
+    /// type:Reservoir objects (lake_village_forest_1, sea_town_docks_1, ...) have no fish defined.
     /// </summary>
     internal static class BuiltInCategories
     {
@@ -60,24 +59,27 @@ namespace GK2.MapMarkers.Providers
             new RuleCategory("portal", "Portals", "The portal and its builder site.",
                 true, MarkerGlyph.Star, "#e2c35a",
                 "prefix:portal_builder"),
-            new RuleCategory("mine", "Mining spots", "Ore veins and stone, marble, clay and sand sources.",
+            new RuleCategory("mine", "Ores & quarries", "Iron ore, copper vein, marble and stone quarries, sand and clay pits.",
                 true, MarkerGlyph.Pickaxe, "#9aa3ad",
-                "prefix:iron_ore, prefix:copper_vein, prefix:marble_source, prefix:marble_player_source, prefix:stone_player_source, "
-                + "prefix:clay_spot, prefix:sand_pit, !contains:container, !contains:conveyor"),
-            new RuleCategory("fishing", "Fishing spots", "Water bodies you can fish in; shows the fish left and fades when empty.",
-                true, MarkerGlyph.Fish, "#4fb3e8",
-                "type:Reservoir, !prefix:test_",
-                decorate: FishingStatus.Decorate),
-            new RuleCategory("cave", "Caves & descents", "Descent ladders, blocked caves and mine blockages.",
-                true, MarkerGlyph.Ladder, "#c9853a",
-                "prefix:descent_ladder, prefix:quarry_cave, id:mine_forest_blockage, id:basement_blockage_mine"),
-            new RuleCategory("passage", "Cave passages", "Scene transitions such as cave tops/bottoms and ruined-temple routes.",
-                true, MarkerGlyph.Cave, "#8a6a4a",
-                "prefix:tp_cave, contains:ruined_temple, !contains:_dev_, !prefix:test_",
-                source: RuleSource.TransitPoint),
-            new RuleCategory("boulder", "Boulders", "Large breakable stones. Can be numerous, so off by default.",
+                "prefix:common_ores_, id:copper_vein, prefix:marble_source_, id:marble_player_source, id:stone_player_source, "
+                + "prefix:sand_pit, prefix:clay_spot"),
+            new RuleCategory("stones", "Stones", "Common mineable stones. Numerous, so off by default.",
                 false, MarkerGlyph.Gem, "#b8b0a0",
-                "prefix:stone_crash"),
+                "prefix:common_stones_"),
+            new RuleCategory("fishing", "Fishing spots", "Waters you can fish in; shows the fish left and fades when empty.",
+                true, MarkerGlyph.Fish, "#4fb3e8",
+                "prefix:fishing_",
+                FishingStatus.Decorate,
+                "contains:fishing_place, contains:fishing_spot", "type:Reservoir, !prefix:test_"),
+            new RuleCategory("cave", "Caves & descents", "Cave passages, the mine, sewers, descent ladders and blocked caves.",
+                true, MarkerGlyph.Cave, "#c9853a",
+                "prefix:tp_cave_, prefix:descent_ladder, id:tp_RT_mine_enter, id:tp_RT_town_sewer_enter, "
+                + "id:tp_RT_scout_sewer_01_enter, id:tp_RT_scout_sewer_02_enter, id:quarry_cave_blocked, id:mine_forest_blockage"),
+            new RuleCategory("entrance", "Doors & basements", "Building entrances, basements and area transitions. Off by default.",
+                false, MarkerGlyph.Ladder, "#8a6a4a",
+                "contains:_enter, contains:_outside, prefix:tp_RT_to_, prefix:tp_VFA_to_, prefix:tp_ruined_temple_to_, "
+                + "prefix:basement_blockage_, prefix:base_blockage_, "
+                + "!contains:sewer, !id:tp_RT_mine_enter, !id:church_tribune_outside, !contains:dev_, !prefix:test_, !contains:darkness"),
         };
     }
 
@@ -105,7 +107,7 @@ namespace GK2.MapMarkers.Providers
             {
                 left += Math.Max(0, wgo.GetGameResInt(def.fishId));
             }
-            marker.Label += left > 0 ? $" ({left})" : " (0)";
+            marker.Label += $" ({left})";
             marker.Faded = left == 0;
         }
     }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using BepInEx;
 using BepInEx.Configuration;
@@ -116,11 +117,22 @@ namespace GK2.MapMarkers
         private void AddRuleCategory(Gk2Settings s, RuleCategory category, int sortOrder)
         {
             string section = "Category: " + category.Name;
+            ConfigEntry<string> rules = s.AddText(section, "Rules", category.Rules, "Match rules",
+                "id:, prefix:, contains:, group:, type:<InteractionType>; prefix '!' to exclude. Separate with commas.", order: 1);
+            foreach (string legacy in category.LegacyRules)
+            {
+                if (string.Equals(rules.Value.Trim(), legacy, StringComparison.Ordinal))
+                {
+                    Plugin.Log.Info($"[{category.Id}] Upgrading unmodified rules to the new default.");
+                    rules.Value = category.Rules;
+                    break;
+                }
+            }
+
             builtInProviders.Add(new RuleCategoryProvider(
                 category,
                 s.AddToggle(section, "Enabled", category.EnabledByDefault, "Show " + category.Name.ToLowerInvariant(), category.Description, order: 0),
-                s.AddText(section, "Rules", category.Rules, "Match rules",
-                    "id:, prefix:, contains:, group:, type:<InteractionType>; prefix '!' to exclude. Separate with commas.", order: 1),
+                rules,
                 s.AddText(section, "Color", category.Color, "Color", "HTML color, e.g. #ff8800.", order: 2),
                 s.AddEnum(section, "Icon", category.Glyph, "Icon", "Pixel-art icon drawn in the tag.", order: 5),
                 s.AddFloatSlider(section, "Scale", 1f, 0.5f, 2f, "Marker scale", "Size multiplier for this category.", step: 0.25f, order: 3),
@@ -181,7 +193,6 @@ namespace GK2.MapMarkers
         public override void OnReturnedToMainMenu()
         {
             SpriteCache.Clear();
-            WgoUtil.ClearSessionCaches();
         }
     }
 

@@ -60,38 +60,6 @@ namespace GK2.MapMarkers.Providers
             return text.Length == 0 ? id : char.ToUpperInvariant(text[0]) + text.Substring(1);
         }
 
-        private static List<GDPointData> transitPoints;
-        private static GdPointsData transitSource;
-
-        /// <summary>Transit GD points of the loaded save; cached until the save's point data object changes.</summary>
-        public static IReadOnlyList<GDPointData> GetTransitPoints()
-        {
-            GdPointsData data = MainGame.Instance != null ? MainGame.Instance.GameSave?.worldData?.gdPointsData : null;
-            if (data == null)
-            {
-                return Array.Empty<GDPointData>();
-            }
-            if (transitPoints == null || !ReferenceEquals(data, transitSource))
-            {
-                transitSource = data;
-                transitPoints = new List<GDPointData>();
-                foreach (GDPointData point in data.Points)
-                {
-                    if (point != null && point.IsTransitPoint)
-                    {
-                        transitPoints.Add(point);
-                    }
-                }
-            }
-            return transitPoints;
-        }
-
-        public static void ClearSessionCaches()
-        {
-            transitPoints = null;
-            transitSource = null;
-        }
-
         /// <summary>Collects every non-hidden WGO of the loaded save. Returns false outside gameplay.</summary>
         public static bool TryCollectAll(List<WgoData> buffer)
         {

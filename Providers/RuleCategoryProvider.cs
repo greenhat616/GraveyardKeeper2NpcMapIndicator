@@ -7,16 +7,16 @@ using UnityEngine;
 namespace GK2.MapMarkers.Providers
 {
     /// <summary>
-    /// Config-driven category: matches world objects (or scene transition points) by id / group / interaction type.
+    /// Config-driven category: matches world objects by definition id / group / interaction type.
     /// Used for mines, fishing spots, teleport pillars, cave entrances, and any future category
     /// that can be described by rules instead of code.
     ///
     /// Rule syntax (separated by ',' or ';'):
-    ///   id:exact_id        exact id
+    ///   id:exact_id        exact definition id
     ///   prefix:iron_ore    id starts with
     ///   contains:fishing   id contains
-    ///   group:some_group   WGODef.wgoGroup equals (WGO source only)
-    ///   type:Reservoir     WGODef.interactionType equals (enum name, WGO source only)
+    ///   group:some_group   WGODef.wgoGroup equals
+    ///   type:Reservoir     WGODef.interactionType equals (enum name)
     ///   !&lt;rule&gt;            exclusion; any matching exclusion rejects the object
     /// A bare token without "kind:" is treated as "prefix:".
     /// </summary>
@@ -68,12 +68,6 @@ namespace GK2.MapMarkers.Providers
 
         public void Collect(MapMarkerContext context, List<MapMarker> output)
         {
-            if (category.Source == RuleSource.TransitPoint)
-            {
-                CollectTransitPoints(context, output);
-                return;
-            }
-
             IReadOnlyList<WgoData> all = context.AllWgo;
             for (int i = 0; i < all.Count; i++)
             {
@@ -88,20 +82,6 @@ namespace GK2.MapMarkers.Providers
                 marker.WorldZoneId = WgoUtil.GetWorldZoneId(wgo);
                 category.Decorate?.Invoke(wgo, marker);
                 output.Add(marker);
-            }
-        }
-
-        private void CollectTransitPoints(MapMarkerContext context, List<MapMarker> output)
-        {
-            IReadOnlyList<GDPointData> points = context.TransitPoints;
-            for (int i = 0; i < points.Count; i++)
-            {
-                GDPointData point = points[i];
-                if (!point.Enabled || !Matches(point.Id, null))
-                {
-                    continue;
-                }
-                output.Add(NewMarker("gd" + point.InstanceId, point.Position, WgoUtil.Localize(point.Id)));
             }
         }
 
@@ -193,7 +173,6 @@ namespace GK2.MapMarkers.Providers
             this.type = type;
         }
 
-        /// <param name="def">Null for non-WGO sources (GD points); group/type rules then never match.</param>
         public bool Matches(string id, WGODef def)
         {
             switch (kind)
@@ -201,8 +180,8 @@ namespace GK2.MapMarkers.Providers
                 case Kind.Id: return string.Equals(id, value, StringComparison.OrdinalIgnoreCase);
                 case Kind.Prefix: return id.StartsWith(value, StringComparison.OrdinalIgnoreCase);
                 case Kind.Contains: return id.IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0;
-                case Kind.Group: return def != null && string.Equals(def.wgoGroup, value, StringComparison.OrdinalIgnoreCase);
-                case Kind.Type: return def != null && def.interactionType == type;
+                case Kind.Group: return string.Equals(def.wgoGroup, value, StringComparison.OrdinalIgnoreCase);
+                case Kind.Type: return def.interactionType == type;
                 default: return false;
             }
         }

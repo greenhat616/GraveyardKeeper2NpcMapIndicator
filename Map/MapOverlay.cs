@@ -62,8 +62,6 @@ namespace GK2.MapMarkers.Map
                 overlay = go.AddComponent<MapOverlay>();
                 overlay.Init(widget, mapRect);
             }
-            // Scenes load/unload GD points while playing; rebuild the transit list on every map open.
-            WgoUtil.ClearSessionCaches();
             overlay.Refresh();
         }
 
@@ -159,7 +157,7 @@ namespace GK2.MapMarkers.Map
         {
             markers.Clear();
             labelModes.Clear();
-            var context = new MapMarkerContext(wgoBuffer, WgoUtil.GetTransitPoints);
+            var context = new MapMarkerContext(wgoBuffer);
             foreach (IMapMarkerProvider provider in MapMarkersApi.Providers)
             {
                 try

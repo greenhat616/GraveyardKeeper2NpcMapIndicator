@@ -100,20 +100,14 @@ namespace GK2.MapMarkers.Api
     public sealed class MapMarkerContext
     {
         private readonly List<WgoData> allWgo;
-        private readonly Func<IReadOnlyList<GDPointData>> transitPointsFactory;
-        private IReadOnlyList<GDPointData> transitPoints;
 
-        internal MapMarkerContext(List<WgoData> allWgo, Func<IReadOnlyList<GDPointData>> transitPointsFactory)
+        internal MapMarkerContext(List<WgoData> allWgo)
         {
             this.allWgo = allWgo;
-            this.transitPointsFactory = transitPointsFactory;
         }
 
         /// <summary>All visible (non-hidden) world objects of the current save, collected once per refresh.</summary>
         public IReadOnlyList<WgoData> AllWgo => allWgo;
-
-        /// <summary>Scene transition GD points (doors, cave passages). Built lazily and cached per session.</summary>
-        public IReadOnlyList<GDPointData> TransitPoints => transitPoints ?? (transitPoints = transitPointsFactory?.Invoke() ?? Array.Empty<GDPointData>());
     }
 
     /// <summary>Public entry point for other mods / future extensions.</summary>
