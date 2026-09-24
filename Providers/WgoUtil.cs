@@ -41,12 +41,55 @@ namespace GK2.MapMarkers.Providers
             try
             {
                 string text = LLBase.L(id);
-                return string.IsNullOrEmpty(text) ? id : text;
+                return string.IsNullOrEmpty(text) || text == id ? Prettify(id) : text;
             }
             catch (Exception)
             {
+                return Prettify(id);
+            }
+        }
+
+        /// <summary>"lake_village_forest_1" -> "Lake village forest 1" for ids without a localization entry.</summary>
+        public static string Prettify(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
                 return id;
             }
+            string text = id.Replace('_', ' ').Trim();
+            return text.Length == 0 ? id : char.ToUpperInvariant(text[0]) + text.Substring(1);
+        }
+
+        private static List<GDPointData> transitPoints;
+        private static GdPointsData transitSource;
+
+        /// <summary>Transit GD points of the loaded save; cached until the save's point data object changes.</summary>
+        public static IReadOnlyList<GDPointData> GetTransitPoints()
+        {
+            GdPointsData data = MainGame.Instance != null ? MainGame.Instance.GameSave?.worldData?.gdPointsData : null;
+            if (data == null)
+            {
+                return Array.Empty<GDPointData>();
+            }
+            if (transitPoints == null || !ReferenceEquals(data, transitSource))
+            {
+                transitSource = data;
+                transitPoints = new List<GDPointData>();
+                foreach (GDPointData point in data.Points)
+                {
+                    if (point != null && point.IsTransitPoint)
+                    {
+                        transitPoints.Add(point);
+                    }
+                }
+            }
+            return transitPoints;
+        }
+
+        public static void ClearSessionCaches()
+        {
+            transitPoints = null;
+            transitSource = null;
         }
 
         /// <summary>Collects every non-hidden WGO of the loaded save. Returns false outside gameplay.</summary>

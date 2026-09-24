@@ -59,6 +59,7 @@ namespace GK2.MapMarkers.Map
             labelMode = mode;
 
             image.sprite = art;
+            image.color = marker.Faded ? new Color(1f, 1f, 1f, 0.45f) : Color.white;
             Vector2 size = art.rect.size;
             rect.pivot = new Vector2(art.pivot.x / size.x, art.pivot.y / size.y);
             rect.sizeDelta = size * unitsPerArtPixel * Mathf.Max(0.25f, marker.Scale);

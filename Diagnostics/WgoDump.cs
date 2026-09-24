@@ -54,6 +54,17 @@ namespace GK2.MapMarkers.Diagnostics
                   .AppendLine(r.Sample);
             }
 
+            IReadOnlyList<GDPointData> transit = WgoUtil.GetTransitPoints();
+            sb.AppendLine();
+            sb.AppendLine($"# Transit GD points (source for 'Cave passages') — {transit.Count}");
+            sb.AppendLine("# id\tenabled\tto_scene\tposition\tscene");
+            foreach (GDPointData p in transit.OrderBy(p => p.Id, StringComparer.Ordinal))
+            {
+                sb.Append(p.Id).Append('\t').Append(p.Enabled).Append('\t').Append(p.GameSceneDataIdToTransit).Append('\t')
+                  .Append($"{p.Position.x:0.#},{p.Position.y:0.#},{p.Position.z:0.#}").Append('\t')
+                  .AppendLine(p.GameSceneDataId);
+            }
+
             string path = Path.Combine(Paths.BepInExRootPath, "MapMarkers_wgo_dump.txt");
             File.WriteAllText(path, sb.ToString(), new UTF8Encoding(false));
             Plugin.Log?.Info($"Wrote {rows.Count} WGO definitions to {path}");

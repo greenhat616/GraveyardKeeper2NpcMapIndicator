@@ -99,12 +99,11 @@ namespace GK2.MapMarkers
                 s.AddText("NPC", "Excluded", "npc_template, npc_goddess_statue", "Excluded ids",
                     "Comma-separated NPC definition ids that are never shown.", order: 6)));
 
-            // Future categories are pure configuration: rules match world-object definitions.
-            // Defaults are starting points; verify ids with the dump key and adjust in the config.
-            AddRuleCategory(s, "mine", "Mines", 10, "#9aa3ad", "contains:ore, prefix:quarry_, !contains:container, !contains:crafter");
-            AddRuleCategory(s, "fishing", "Fishing spots", 11, "#4fb3e8", "contains:fishing_place, contains:fishing_spot");
-            AddRuleCategory(s, "teleport", "Teleport pillars", 12, "#b98cff", "type:TeleportMilestone");
-            AddRuleCategory(s, "cave", "Cave entrances", 13, "#c9853a", "prefix:descent_ladder, contains:cave, prefix:tp_cave");
+            // Other categories are pure configuration: rules match world-object definitions.
+            for (int i = 0; i < BuiltInCategories.All.Count; i++)
+            {
+                AddRuleCategory(s, BuiltInCategories.All[i], sortOrder: 10 + i);
+            }
 
             Plugin.Settings.PaperOpacity.SettingChanged += (_, __) => ApplyArtSettings();
             Plugin.Settings.PixelSize.SettingChanged += (_, __) => MapMarkersApi.RequestRefresh();
@@ -114,19 +113,19 @@ namespace GK2.MapMarkers
             Plugin.Log.Info("MAP_MARKERS_REGISTERED");
         }
 
-        private void AddRuleCategory(Gk2Settings s, string id, string name, int sectionOrder, string color, string rules)
+        private void AddRuleCategory(Gk2Settings s, RuleCategory category, int sortOrder)
         {
-            string section = "Category: " + name;
-            builtInProviders.Add(new WgoRuleProvider(
-                id,
-                name,
-                s.AddToggle(section, "Enabled", false, "Show " + name.ToLowerInvariant(), "Draw this category on the map.", order: 0),
-                s.AddText(section, "Rules", rules, "Match rules",
+            string section = "Category: " + category.Name;
+            builtInProviders.Add(new RuleCategoryProvider(
+                category,
+                s.AddToggle(section, "Enabled", category.EnabledByDefault, "Show " + category.Name.ToLowerInvariant(), category.Description, order: 0),
+                s.AddText(section, "Rules", category.Rules, "Match rules",
                     "id:, prefix:, contains:, group:, type:<InteractionType>; prefix '!' to exclude. Separate with commas.", order: 1),
-                s.AddText(section, "Color", color, "Color", "HTML color, e.g. #ff8800.", order: 2),
+                s.AddText(section, "Color", category.Color, "Color", "HTML color, e.g. #ff8800.", order: 2),
+                s.AddEnum(section, "Icon", category.Glyph, "Icon", "Pixel-art icon drawn in the tag.", order: 5),
                 s.AddFloatSlider(section, "Scale", 1f, 0.5f, 2f, "Marker scale", "Size multiplier for this category.", step: 0.25f, order: 3),
                 s.AddEnum(section, "Labels", MarkerLabelMode.Hover, "Labels", "When to show labels.", order: 4),
-                sortOrder: sectionOrder));
+                sortOrder: sortOrder));
         }
 
         private static void ApplyArtSettings()
@@ -182,6 +181,7 @@ namespace GK2.MapMarkers
         public override void OnReturnedToMainMenu()
         {
             SpriteCache.Clear();
+            WgoUtil.ClearSessionCaches();
         }
     }
 

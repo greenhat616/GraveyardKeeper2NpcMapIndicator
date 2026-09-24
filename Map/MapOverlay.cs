@@ -62,6 +62,8 @@ namespace GK2.MapMarkers.Map
                 overlay = go.AddComponent<MapOverlay>();
                 overlay.Init(widget, mapRect);
             }
+            // Scenes load/unload GD points while playing; rebuild the transit list on every map open.
+            WgoUtil.ClearSessionCaches();
             overlay.Refresh();
         }
 
@@ -157,7 +159,7 @@ namespace GK2.MapMarkers.Map
         {
             markers.Clear();
             labelModes.Clear();
-            var context = new MapMarkerContext(wgoBuffer);
+            var context = new MapMarkerContext(wgoBuffer, WgoUtil.GetTransitPoints);
             foreach (IMapMarkerProvider provider in MapMarkersApi.Providers)
             {
                 try
@@ -260,7 +262,7 @@ namespace GK2.MapMarkers.Map
                     return portrait;
                 }
             }
-            return MarkerArt.ForGlyph(marker.Color);
+            return MarkerArt.ForGlyph(marker.Glyph, marker.Color);
         }
 
         /// <summary>

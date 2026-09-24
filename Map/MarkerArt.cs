@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using GK2.MapMarkers.Api;
 using UnityEngine;
 
 namespace GK2.MapMarkers.Map
@@ -19,7 +20,6 @@ namespace GK2.MapMarkers.Map
 
         private const int Padding = 3;       // border + inner margin around the content
         private const int PointerHeight = 4;
-        private const int GlyphSize = 9;
 
         private static readonly Dictionary<string, Sprite> cache = new Dictionary<string, Sprite>();
 
@@ -58,14 +58,14 @@ namespace GK2.MapMarkers.Map
             return sprite;
         }
 
-        public static Sprite ForGlyph(Color color)
+        public static Sprite ForGlyph(MarkerGlyph glyph, Color color)
         {
-            string key = "g:" + ColorUtility.ToHtmlStringRGBA(color) + ":" + PaperOpacity;
+            string key = "g:" + glyph + ":" + ColorUtility.ToHtmlStringRGBA(color) + ":" + PaperOpacity;
             if (cache.TryGetValue(key, out Sprite sprite) && sprite != null)
             {
                 return sprite;
             }
-            sprite = BuildTag(Glyph(color), key.GetHashCode());
+            sprite = BuildTag(MarkerGlyphs.Render(glyph, color), key.GetHashCode());
             cache[key] = sprite;
             return sprite;
         }
@@ -81,31 +81,6 @@ namespace GK2.MapMarkers.Map
                 }
             }
             cache.Clear();
-        }
-
-        /// <summary>Diamond gem in the category color with an ink outline.</summary>
-        private static PixelImage Glyph(Color color)
-        {
-            var image = new PixelImage(GlyphSize, GlyphSize);
-            Color32 fill = color;
-            Color32 light = Color.Lerp(color, Color.white, 0.45f);
-            int c = GlyphSize / 2;
-            for (int y = 0; y < GlyphSize; y++)
-            {
-                for (int x = 0; x < GlyphSize; x++)
-                {
-                    int d = Mathf.Abs(x - c) + Mathf.Abs(y - c);
-                    if (d == c)
-                    {
-                        image.Set(x, y, PortraitInk);
-                    }
-                    else if (d < c)
-                    {
-                        image.Set(x, y, x < c && y < c && d == c - 1 ? light : fill);
-                    }
-                }
-            }
-            return image;
         }
 
         private static Sprite BuildTag(PixelImage content, int seed)

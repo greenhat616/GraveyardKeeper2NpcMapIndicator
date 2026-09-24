@@ -27,27 +27,41 @@ dotnet build -c Release -p:GameDir="D:\Games\Graveyard Keeper 2"
   ink border, drop shadow and a pointer whose tip marks the exact position. NPC portraits (`portrait_icon_*`,
   full-figure ~31x48 px) are read back from the atlas, the blue outline key is recolored to ink, and a
   head-and-shoulders bust is cropped automatically (silhouette widening = shoulders). Other categories show a
-  colored gem. `Pixel size` keeps art pixels square and crisp (screen px per art px).
+  pixel-art glyph per category (pickaxe, fish, pillar, cave, ladder, coin, cross, star, gem). `Pixel size` keeps art pixels square and crisp (screen px per art px).
 - While the map is open, markers refresh every `RefreshInterval` seconds (NPCs keep moving).
 
 ## Adding categories
 
 ### Without code — rule categories
 
-Each `Category: …` section has `Enabled`, `Rules`, `Color`, `Scale`, `Labels`. Rules (comma-separated):
+Built-in categories (ids verified against the game's balance data, build 25467846):
+
+| Category | Default | Icon | Default rules |
+| --- | --- | --- | --- |
+| Teleport pillars | off (vanilla map already shows them) | Pillar | `type:TeleportMilestone` |
+| Portals | on | Star | `prefix:portal_builder` |
+| Mining spots | on | Pickaxe | `iron_ore`, `copper_vein`, `marble_source`, `marble_player_source`, `stone_player_source`, `clay_spot`, `sand_pit` (minus containers / conveyors) |
+| Fishing spots | on | Fish | `type:Reservoir` — label shows fish left, marker fades when empty |
+| Caves & descents | on | Ladder | `descent_ladder*`, `quarry_cave*`, `mine_forest_blockage`, `basement_blockage_mine` |
+| Cave passages | on | Cave | scene transition GD points: `tp_cave*`, `*ruined_temple*` |
+| Boulders | off (numerous) | Gem | `prefix:stone_crash` |
+
+Trees, bushes, grass and decor are intentionally not offered (thousands of instances).
+
+Each `Category: …` section in the Mods menu has `Enabled`, `Rules`, `Color`, `Icon`, `Scale`, `Labels`. Rules (comma-separated):
 
 | Rule | Matches |
 | --- | --- |
-| `id:x` | definition id equals `x` |
+| `id:x` | id equals `x` |
 | `prefix:x` (or bare `x`) | id starts with `x` |
 | `contains:x` | id contains `x` |
-| `group:x` | `WGODef.wgoGroup` equals `x` |
-| `type:X` | `WGODef.interactionType` equals enum name `X` (e.g. `TeleportMilestone`, `ZombieMine`) |
+| `group:x` | `WGODef.wgoGroup` equals `x` (world objects only) |
+| `type:X` | `WGODef.interactionType` equals enum name `X` (world objects only) |
 | `!<rule>` | exclusion |
 
-The built-in rule defaults are **unverified starting points**. Load a save, press **Ctrl+F9**, then read
-`BepInEx/MapMarkers_wgo_dump.txt` (id, count, interaction type, group, localized name, sample position) and
-adjust the rules.
+To add a category in code, append one `RuleCategory` to `Providers/BuiltInCategories.cs`.
+Load a save and press **Ctrl+F9** to write `BepInEx/MapMarkers_wgo_dump.txt` (all world-object ids with counts,
+interaction types, groups, names and sample positions, plus all transit GD points) to check or write rules.
 
 ### With code — providers
 
