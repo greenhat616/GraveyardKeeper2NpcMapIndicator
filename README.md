@@ -49,7 +49,10 @@ game's managed assemblies, BepInEx and `GK2.Framework.dll` from that directory; 
 - Harmony postfix on `MapPageWidget.Redraw` adds an overlay under the map's `mapRect`, just below the player icon
   (fog-of-war clouds still cover it).
 - Positions use the same projection as the game's player icon / milestones (`GUIElements.WorldMin/WorldMax`).
-  Objects inside interiors are placed on the interior's map anchor (`worldZonePoints`) and fanned out on a ring.
+  Objects inside interiors are placed on the interior's map anchor (`worldZonePoints`).
+- Overlapping tags of the same category (including NPCs sharing one interior anchor) are spread into rows above
+  them, each with an ink leader line and dot at its real position (`Spread overlapping markers`, on by default).
+  While the pointer is over a tag, the layout is held so its name label stays visible.
 - Marker art is generated at runtime (no bundled images): a semi-transparent pixel-art parchment tag with an
   ink border, drop shadow and a pointer whose tip marks the exact position. NPC portraits (`portrait_icon_*`,
   full-figure ~31x48 px) are read back from the atlas, the blue outline key is recolored to ink, and a

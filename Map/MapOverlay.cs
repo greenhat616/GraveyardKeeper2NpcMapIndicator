@@ -17,7 +17,8 @@ namespace GK2.MapMarkers.Map
     internal sealed class MapOverlay : MonoBehaviour
     {
         private const string ObjectName = "GK2MapMarkersOverlay";
-        private const float InteriorSpreadRadius = 12f; // in art pixels
+        private const float ClusterGapPixels = 1f;   // in art pixels
+        private const float ClusterLiftPixels = 6f;  // in art pixels
 
         private static readonly FieldInfo MapRectField = AccessTools.Field(typeof(MapPageWidget), "mapRect");
         private static readonly FieldInfo PlayerIconField = AccessTools.Field(typeof(MapPageWidget), "playerIcon");
@@ -30,13 +31,24 @@ namespace GK2.MapMarkers.Map
         private readonly Dictionary<string, MarkerLabelMode> labelModes = new Dictionary<string, MarkerLabelMode>();
         private readonly HashSet<string> seenKeys = new HashSet<string>();
         private readonly HashSet<string> failedProviders = new HashSet<string>();
-        private readonly Dictionary<string, int> interiorTotals = new Dictionary<string, int>();
-        private readonly Dictionary<string, int> interiorIndices = new Dictionary<string, int>();
+        private readonly List<LeaderView> leaders = new List<LeaderView>();
+        private readonly List<MarkerDeclutter.Item> placements = new List<MarkerDeclutter.Item>();
+        private readonly List<Entry> entries = new List<Entry>();
+
+        private sealed class Entry
+        {
+            public MapMarker Marker;
+            public Sprite Art;
+            public string Key;
+            public MarkerDeclutter.Item Placement;
+        }
 
         private MapPageWidget widget;
         private RectTransform mapRect;
         private RectTransform playerIcon;
         private RectTransform container;
+        private RectTransform leadersRoot;
+        private RectTransform tagsRoot;
         private TMP_Text fontTemplate;
         private float timer;
         private bool dirty = true;
@@ -95,6 +107,9 @@ namespace GK2.MapMarkers.Map
             container.SetParent(mapRect, false);
             container.anchorMin = container.anchorMax = container.pivot = new Vector2(0.5f, 0.5f);
             container.anchoredPosition = Vector2.zero;
+            // Leader lines are drawn below all tags.
+            leadersRoot = CreateLayer("Leaders");
+            tagsRoot = CreateLayer("Tags");
 
             foreach (TMP_Text text in owner.GetComponentsInChildren<TMP_Text>(true))
             {
@@ -104,6 +119,18 @@ namespace GK2.MapMarkers.Map
                     break;
                 }
             }
+        }
+
+        private RectTransform CreateLayer(string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.layer = gameObject.layer;
+            var layer = (RectTransform)go.transform;
+            layer.SetParent(container, false);
+            layer.anchorMin = layer.anchorMax = layer.pivot = new Vector2(0.5f, 0.5f);
+            layer.anchoredPosition = Vector2.zero;
+            layer.sizeDelta = Vector2.zero;
+            return layer;
         }
 
         private void OnEnable()
@@ -122,11 +149,29 @@ namespace GK2.MapMarkers.Map
 
         private void Update()
         {
+            // Hold the layout while a tag is hovered: re-spreading moving NPCs would slide the tag out from
+            // under the pointer and hide its name.
+            if (!dirty && IsAnyHovered())
+            {
+                return;
+            }
             timer += Time.unscaledDeltaTime;
             if (dirty || timer >= Plugin.Settings.RefreshInterval.Value)
             {
                 Refresh();
             }
+        }
+
+        private bool IsAnyHovered()
+        {
+            foreach (MarkerView view in activeViews.Values)
+            {
+                if (view != null && view.IsHovered)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public void Refresh()
@@ -184,49 +229,16 @@ namespace GK2.MapMarkers.Map
         private void Layout(MapProjection projection)
         {
             seenKeys.Clear();
-            float unitsPerArtPixel = GetUnitsPerArtPixel();
-            interiorTotals.Clear();
-            interiorIndices.Clear();
+            entries.Clear();
+            placements.Clear();
+            float pixel = GetUnitsPerArtPixel();
 
-            var projected = new List<(MapMarker marker, Vector2 pos, bool interior)>(markers.Count);
             foreach (MapMarker marker in markers)
             {
-                if (!projection.TryProject(marker.WorldPosition, marker.WorldZoneId, out Vector2 pos, out bool interior))
+                if (!projection.TryProject(marker.WorldPosition, marker.WorldZoneId, out Vector2 anchor, out _))
                 {
                     continue;
                 }
-                projected.Add((marker, pos, interior));
-                if (interior)
-                {
-                    interiorTotals.TryGetValue(marker.WorldZoneId, out int n);
-                    interiorTotals[marker.WorldZoneId] = n + 1;
-                }
-            }
-
-            // Category order first, then top-to-bottom so lower tags overlap the ones above them.
-            projected.Sort((a, b) =>
-            {
-                int bySort = a.marker.SortOrder.CompareTo(b.marker.SortOrder);
-                return bySort != 0 ? bySort : b.pos.y.CompareTo(a.pos.y);
-            });
-
-            foreach (var (marker, basePos, interior) in projected)
-            {
-                Vector2 pos = basePos;
-                if (interior)
-                {
-                    // Several NPCs in the same interior share one anchor: fan them out on a ring.
-                    int total = interiorTotals[marker.WorldZoneId];
-                    interiorIndices.TryGetValue(marker.WorldZoneId, out int index);
-                    interiorIndices[marker.WorldZoneId] = index + 1;
-                    if (total > 1)
-                    {
-                        float angle = index * Mathf.PI * 2f / total;
-                        float radius = (InteriorSpreadRadius + 3f * Mathf.Max(0, total - 4)) * unitsPerArtPixel;
-                        pos += new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
-                    }
-                }
-
                 string key = marker.CategoryId + ":" + marker.Key;
                 if (!seenKeys.Add(key))
                 {
@@ -237,14 +249,72 @@ namespace GK2.MapMarkers.Map
                 {
                     continue;
                 }
-                if (!activeViews.TryGetValue(key, out MarkerView view) || view == null)
+                var placement = new MarkerDeclutter.Item
                 {
-                    view = pool.Count > 0 ? pool.Pop() : MarkerView.Create(container, fontTemplate);
-                    activeViews[key] = view;
+                    Anchor = anchor,
+                    Size = MarkerView.GetSize(art, pixel, marker.Scale),
+                    Group = marker.CategoryId
+                };
+                placements.Add(placement);
+                entries.Add(new Entry { Marker = marker, Art = art, Key = key, Placement = placement });
+            }
+
+            if (Plugin.Settings.SpreadOverlapping.Value)
+            {
+                // Overlapping tags (including NPCs sharing one interior anchor) are spread into rows with leader lines.
+                MarkerDeclutter.Resolve(placements, ClusterGapPixels * pixel, ClusterLiftPixels * pixel);
+            }
+            else
+            {
+                foreach (MarkerDeclutter.Item placement in placements)
+                {
+                    placement.Tip = placement.Anchor;
+                    placement.Displaced = false;
                 }
-                labelModes.TryGetValue(marker.CategoryId, out MarkerLabelMode mode);
-                view.Apply(marker, art, mode, pos, unitsPerArtPixel);
-                view.transform.SetAsLastSibling(); // keeps SortOrder as draw order
+            }
+
+            // Category order first, then top-to-bottom so lower tags overlap the ones above them.
+            entries.Sort((x, y) =>
+            {
+                int bySort = x.Marker.SortOrder.CompareTo(y.Marker.SortOrder);
+                return bySort != 0 ? bySort : y.Placement.Tip.y.CompareTo(x.Placement.Tip.y);
+            });
+
+            MarkerView hovered = null;
+            int leaderCount = 0;
+            foreach (Entry entry in entries)
+            {
+                if (!activeViews.TryGetValue(entry.Key, out MarkerView view) || view == null)
+                {
+                    view = pool.Count > 0 ? pool.Pop() : MarkerView.Create(tagsRoot, fontTemplate);
+                    activeViews[entry.Key] = view;
+                }
+                labelModes.TryGetValue(entry.Marker.CategoryId, out MarkerLabelMode mode);
+                view.Apply(entry.Marker, entry.Art, mode, entry.Placement.Tip, pixel);
+                view.transform.SetAsLastSibling(); // keeps the sort above as draw order
+                if (view.IsHovered)
+                {
+                    hovered = view;
+                }
+
+                if (entry.Placement.Displaced)
+                {
+                    if (leaderCount == leaders.Count)
+                    {
+                        leaders.Add(LeaderView.Create(leadersRoot));
+                    }
+                    leaders[leaderCount++].Apply(entry.Placement.Tip, entry.Placement.Anchor, pixel, entry.Marker.Faded);
+                }
+            }
+
+            // The tag under the pointer stays on top so its name label is not covered.
+            if (hovered != null)
+            {
+                hovered.transform.SetAsLastSibling();
+            }
+            for (int i = leaderCount; i < leaders.Count; i++)
+            {
+                leaders[i].gameObject.SetActive(false);
             }
 
             ReleaseUnseen();
@@ -310,6 +380,10 @@ namespace GK2.MapMarkers.Map
         {
             seenKeys.Clear();
             ReleaseUnseen();
+            foreach (LeaderView leader in leaders)
+            {
+                leader.gameObject.SetActive(false);
+            }
         }
 
         private void KeepPlayerOnTop()

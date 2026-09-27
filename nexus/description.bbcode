@@ -9,7 +9,7 @@ Open the map and see where everyone is right now. Every named NPC gets a small p
 [*][b]Portrait busts[/b]: the game's NPC portraits are cropped to a head-and-shoulders bust automatically; the blue outline is re-inked to match the map.
 [*][b]Retro look[/b]: semi-transparent parchment tags with an ink border, drop shadow and a pointer tip, rendered as crisp pixel art at a configurable pixel size. No image files are shipped; all art is generated at runtime.
 [*][b]Names on hover[/b]: in the game's language, or always shown, or hidden.
-[*][b]Interiors[/b]: NPCs inside buildings are placed at the building on the map and fanned out so they don't overlap.
+[*][b]No pile-ups[/b]: NPCs standing close together, or inside the same building, are spread side by side, with an ink line to where each one really is.
 [*][b]Fog of war respected[/b]: unexplored areas still cover markers.
 [*][b]Points of interest[/b], each switchable in the Mods menu:
 [list]
@@ -44,7 +44,7 @@ When you update, saved category rules that still equal an older default are upgr
 
 [size=4][b]SETTINGS[/b][/size]
 [list]
-[*][b]General[/b]: refresh interval, pixel size (screen pixels per art pixel; raise it for bigger markers), parchment opacity
+[*][b]General[/b]: refresh interval, pixel size (screen pixels per art pixel; raise it for bigger markers), parchment opacity, spread overlapping markers
 [*][b]NPC[/b]: on/off, named NPCs only or all NPCs, name labels, scale, portraits, head-only portraits, excluded NPC ids
 [*][b]Each category[/b]: on/off, match rules, color, icon (pickaxe, fish, pillar, cave, ladder, coin, cross, star, gem), scale, labels
 [*][b]Advanced[/b]: Ctrl+F9 writes every world-object id of the loaded save to [font=Courier New]BepInEx/MapMarkers_wgo_dump.txt[/font], so you can write your own rules

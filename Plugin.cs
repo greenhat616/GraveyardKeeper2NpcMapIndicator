@@ -45,6 +45,7 @@ namespace GK2.MapMarkers
         public ConfigEntry<float> RefreshInterval;
         public ConfigEntry<int> PixelSize;
         public ConfigEntry<float> PaperOpacity;
+        public ConfigEntry<bool> SpreadOverlapping;
         public ConfigEntry<KeyboardShortcut> DumpKey;
     }
 
@@ -83,6 +84,8 @@ namespace GK2.MapMarkers
                     "Pixel size", "Screen pixels per marker-art pixel. Higher = bigger markers.", step: 1, order: 1),
                 PaperOpacity = s.AddFloatSlider("General", "PaperOpacity", 0.8f, 0.2f, 1f,
                     "Parchment opacity", "Opacity of the parchment tag behind icons.", step: 0.05f, order: 2),
+                SpreadOverlapping = s.AddToggle("General", "SpreadOverlapping", true,
+                    "Spread overlapping markers", "Lay out overlapping markers side by side with ink lines to their real position.", order: 3),
                 DumpKey = s.AddKeybind("Advanced", "DumpWgoIds", new KeyboardShortcut(KeyCode.F9, KeyCode.LeftControl),
                     "Dump world object ids",
                     "Writes every world object id / group / interaction type to BepInEx/MapMarkers_wgo_dump.txt. Use it to write category rules.",
@@ -108,6 +111,7 @@ namespace GK2.MapMarkers
 
             Plugin.Settings.PaperOpacity.SettingChanged += (_, __) => ApplyArtSettings();
             Plugin.Settings.PixelSize.SettingChanged += (_, __) => MapMarkersApi.RequestRefresh();
+            Plugin.Settings.SpreadOverlapping.SettingChanged += (_, __) => MapMarkersApi.RequestRefresh();
             ApplyArtSettings();
 
             s.AddReadOnly("Status", "Summary", "Active categories", "Enabled marker providers.", Describe, order: 0);

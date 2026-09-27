@@ -13,7 +13,15 @@ namespace GK2.MapMarkers.Map
         private Image image;
         private TextMeshProUGUI label;
         private MarkerLabelMode labelMode;
-        private int baseSiblingIndex;
+
+        /// <summary>True while the pointer is over this marker. Survives refreshes so the name stays visible.</summary>
+        public bool IsHovered { get; private set; }
+
+        /// <summary>Tag size in map units for the given art, before it is applied.</summary>
+        public static Vector2 GetSize(Sprite art, float unitsPerArtPixel, float scale)
+        {
+            return art.rect.size * unitsPerArtPixel * Mathf.Max(0.25f, scale);
+        }
 
         public static MarkerView Create(Transform parent, TMP_Text fontTemplate)
         {
@@ -62,7 +70,7 @@ namespace GK2.MapMarkers.Map
             image.color = marker.Faded ? new Color(1f, 1f, 1f, 0.45f) : Color.white;
             Vector2 size = art.rect.size;
             rect.pivot = new Vector2(art.pivot.x / size.x, art.pivot.y / size.y);
-            rect.sizeDelta = size * unitsPerArtPixel * Mathf.Max(0.25f, marker.Scale);
+            rect.sizeDelta = GetSize(art, unitsPerArtPixel, marker.Scale);
             rect.anchoredPosition = anchoredPosition;
 
             // Only intercept the pointer when hovering is needed, so map dragging and milestones stay usable.
@@ -71,37 +79,35 @@ namespace GK2.MapMarkers.Map
             if (label != null)
             {
                 label.text = marker.Label ?? string.Empty;
-                label.gameObject.SetActive(mode == MarkerLabelMode.Always && !string.IsNullOrEmpty(marker.Label));
+                bool show = mode == MarkerLabelMode.Always || (mode == MarkerLabelMode.Hover && IsHovered);
+                label.gameObject.SetActive(show && !string.IsNullOrEmpty(marker.Label));
             }
             gameObject.SetActive(true);
         }
 
         public void OnPointerEnter(PointerEventData eventData)
         {
+            IsHovered = true;
             if (labelMode != MarkerLabelMode.Hover || label == null || string.IsNullOrEmpty(label.text))
             {
                 return;
             }
-            baseSiblingIndex = rect.GetSiblingIndex();
             rect.SetAsLastSibling();
             label.gameObject.SetActive(true);
         }
 
         public void OnPointerExit(PointerEventData eventData)
         {
-            if (labelMode != MarkerLabelMode.Hover || label == null)
+            IsHovered = false;
+            if (labelMode == MarkerLabelMode.Hover && label != null)
             {
-                return;
-            }
-            label.gameObject.SetActive(false);
-            if (baseSiblingIndex < rect.parent.childCount)
-            {
-                rect.SetSiblingIndex(baseSiblingIndex);
+                label.gameObject.SetActive(false);
             }
         }
 
         private void OnDisable()
         {
+            IsHovered = false;
             if (label != null && labelMode == MarkerLabelMode.Hover)
             {
                 label.gameObject.SetActive(false);
