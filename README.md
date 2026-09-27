@@ -4,6 +4,25 @@ Graveyard Keeper 2 BepInEx mod built on [GK2 Mod Framework](https://www.nexusmod
 Draws NPCs on the world map (live position, portrait, name on hover) and provides an extensible marker
 system for future categories: mines, fishing spots, teleport pillars, cave entrances.
 
+## Compatibility
+
+| Component | Version |
+| --- | --- |
+| Graveyard Keeper 2 (Steam, Windows x64, Unity 6000.3.9f1 Mono) | built against build 25467846; API re-checked on build 25533739 |
+| BepInEx | 5.4.23.5 x64 |
+| GK2 Mod Framework | 0.1.x (`[0.1.0, 0.2.0)`) |
+
+The mod registers with `requiresKnownBuild: false`, so the framework does not block it on new game builds.
+It relies on these game internals, which should be re-checked after each game update:
+
+- `MapPageWidget.Redraw()` (Harmony postfix) and its private fields `mapRect`, `playerIcon`, `worldZonePoints`
+- `GUIElements.WorldMin` / `WorldMax`, `MainGame.Instance.GameSave.worldData.gameSceneDataList[].wgoDataList`
+- `WgoData` (`Position`, `IsHidden`, `WorldZoneData`, `Definition`, `GetGameResInt`), `WGODef` (`portrait`, `repResName`,
+  `wgoGroup`, `interactionType`), `FishingDef.GetAllForReservoir`, `EasySpritesCollection`, `LLBase.L`
+- World-object ids used by the default category rules (see below)
+
+Missing private fields degrade gracefully (no markers, errors in `BepInEx/LogOutput.log`) instead of crashing the game.
+
 ## Install
 
 Requires BepInEx 5.4.23.5 x64 and GK2 Mod Framework 0.1.x. Copy `GK2.MapMarkers.dll` into `BepInEx/plugins`.
@@ -16,6 +35,9 @@ dotnet build -c Release                       # builds and copies the DLL to ..\
 dotnet build -c Release -p:DeployToPlugins=false
 dotnet build -c Release -p:GameDir="D:\Games\Graveyard Keeper 2"
 ```
+
+`GameDir` defaults to `..\..` (the repository checked out at `<game>\ModSources\GK2.MapMarkers`). The build references the
+game's managed assemblies, BepInEx and `GK2.Framework.dll` from that directory; none of them are redistributed here.
 
 ## How it works
 
@@ -99,6 +121,6 @@ MapMarkersApi.RegisterProvider(new MyProvider());
 
 ## Known limitations
 
-- Runtime behaviour has not been tested in game yet (compiled against build 25467846 assemblies).
+- Early preview: marker rendering has been seen in game, but the category rules have not all been checked in game yet.
 - Name labels appear on mouse hover; with a gamepad set `Labels = Always`.
 - Sprites that are tight-packed or rotated in an atlas cannot be read back and fall back to a gem glyph.

@@ -15,6 +15,9 @@
     <FrameworkDll Condition="'$(FrameworkDll)' == ''">$(BepInExDir)\plugins\GK2.Framework.dll</FrameworkDll>
     <!-- Set to false to only build without copying into BepInEx/plugins. -->
     <DeployToPlugins Condition="'$(DeployToPlugins)' == ''">true</DeployToPlugins>
+    <!-- Game build 25533739's Assembly-CSharp references a newer System.IO.Compression than netstandard2.1;
+         this mod never touches that API, so the reference-version conflict is informational only. -->
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3277</MSBuildWarningsAsMessages>
   </PropertyGroup>
 
   <ItemGroup>
