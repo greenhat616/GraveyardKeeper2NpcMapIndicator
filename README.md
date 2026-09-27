@@ -39,6 +39,11 @@ dotnet build -c Release -p:GameDir="D:\Games\Graveyard Keeper 2"
 `GameDir` defaults to `..\..` (the repository checked out at `<game>\ModSources\GK2.MapMarkers`). The build references the
 game's managed assemblies, BepInEx and `GK2.Framework.dll` from that directory; none of them are redistributed here.
 
+## Release packaging
+
+`pwsh -File package.ps1` builds Release and writes `dist/GK2.MapMarkers-<version>.zip` containing
+`BepInEx/plugins/GK2.MapMarkers.dll`. Nexus page texts, changelog, upload checklist and the showcase image live in `nexus/`.
+
 ## How it works
 
 - Harmony postfix on `MapPageWidget.Redraw` adds an overlay under the map's `mapRect`, just below the player icon
