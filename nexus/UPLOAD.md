@@ -40,7 +40,10 @@ See every NPC on the world map, live, as a portrait on a hand-inked parchment ta
 Primary image (thumbnail): `nexus/images/marker-showcase.png` (1280x720). It is rendered with the mod's own
 generator code, **not an in-game screenshot**; its caption says so.
 
-In-game screenshots still to take (with the release build, default settings, 1920x1080 or larger):
+In-game screenshot available: `nexus/images/ingame-map.png` (3840x2160, build 25533739): NPC busts across the
+town, port and village, including a spread row of guards at the square.
+
+Further in-game screenshots still to take (with the release build, default settings, 1920x1080 or larger):
 
 1. The world map with several NPC markers in the village. Hover one so its name label shows.
 2. A zoomed crop of a few NPC busts next to the vanilla player icon and a teleport milestone, to show they line up.
