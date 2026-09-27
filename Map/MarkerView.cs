@@ -14,8 +14,16 @@ namespace GK2.MapMarkers.Map
         private TextMeshProUGUI label;
         private MarkerLabelMode labelMode;
 
-        /// <summary>True while the pointer is over this marker. Survives refreshes so the name stays visible.</summary>
-        public bool IsHovered { get; private set; }
+        private bool pointerHover;
+        private bool gamepadHover;
+
+        /// <summary>True while the mouse or the gamepad map cursor is over this marker. Survives refreshes.</summary>
+        public bool IsHovered => pointerHover || gamepadHover;
+
+        /// <summary>Centered rect covering the tag, for the gamepad cursor frame (the tag's own pivot is its tip).</summary>
+        public RectTransform NavigationRect => navigationRect;
+
+        private RectTransform navigationRect;
 
         /// <summary>Tag size in map units for the given art, before it is applied.</summary>
         public static Vector2 GetSize(Sprite art, float unitsPerArtPixel, float scale)
@@ -34,6 +42,13 @@ namespace GK2.MapMarkers.Map
 
             view.image = go.AddComponent<Image>();
             view.image.type = Image.Type.Simple;
+
+            var navGo = new GameObject("Navigation", typeof(RectTransform));
+            navGo.layer = go.layer;
+            view.navigationRect = (RectTransform)navGo.transform;
+            view.navigationRect.SetParent(view.rect, false);
+            view.navigationRect.anchorMin = view.navigationRect.anchorMax = view.navigationRect.pivot = new Vector2(0.5f, 0.5f);
+            view.navigationRect.anchoredPosition = Vector2.zero;
 
             if (fontTemplate != null && fontTemplate.font != null)
             {
@@ -71,6 +86,7 @@ namespace GK2.MapMarkers.Map
             Vector2 size = art.rect.size;
             rect.pivot = new Vector2(art.pivot.x / size.x, art.pivot.y / size.y);
             rect.sizeDelta = GetSize(art, unitsPerArtPixel, marker.Scale);
+            navigationRect.sizeDelta = rect.sizeDelta;
             rect.anchoredPosition = anchoredPosition;
 
             // Only intercept the pointer when hovering is needed, so map dragging and milestones stay usable.
@@ -87,27 +103,39 @@ namespace GK2.MapMarkers.Map
 
         public void OnPointerEnter(PointerEventData eventData)
         {
-            IsHovered = true;
-            if (labelMode != MarkerLabelMode.Hover || label == null || string.IsNullOrEmpty(label.text))
-            {
-                return;
-            }
-            rect.SetAsLastSibling();
-            label.gameObject.SetActive(true);
+            pointerHover = true;
+            UpdateHoverState();
         }
 
         public void OnPointerExit(PointerEventData eventData)
         {
-            IsHovered = false;
+            pointerHover = false;
+            UpdateHoverState();
+        }
+
+        /// <summary>Selection by the gamepad's virtual map cursor, which does not raise pointer events.</summary>
+        public void SetGamepadHover(bool hovered)
+        {
+            gamepadHover = hovered;
+            UpdateHoverState();
+        }
+
+        private void UpdateHoverState()
+        {
+            if (IsHovered)
+            {
+                rect.SetAsLastSibling();
+            }
             if (labelMode == MarkerLabelMode.Hover && label != null)
             {
-                label.gameObject.SetActive(false);
+                label.gameObject.SetActive(IsHovered && !string.IsNullOrEmpty(label.text));
             }
         }
 
         private void OnDisable()
         {
-            IsHovered = false;
+            pointerHover = false;
+            gamepadHover = false;
             if (label != null && labelMode == MarkerLabelMode.Hover)
             {
                 label.gameObject.SetActive(false);

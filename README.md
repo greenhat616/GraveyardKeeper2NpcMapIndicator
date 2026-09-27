@@ -52,7 +52,10 @@ game's managed assemblies, BepInEx and `GK2.Framework.dll` from that directory; 
   Objects inside interiors are placed on the interior's map anchor (`worldZonePoints`).
 - Overlapping tags of the same category (including NPCs sharing one interior anchor) are spread into rows above
   them, each with an ink leader line and dot at its real position (`Spread overlapping markers`, on by default).
-  While the pointer is over a tag, the layout is held so its name label stays visible.
+  While the pointer or gamepad cursor is over a tag, the layout is held so its name label stays visible.
+- Town vendors: finished vendor buildings (`t_b_tent_*` carrying a `TownBuildingWgoComponent`) are shown with the
+  vendor's portrait; the label is the vendor type. The character is found by walking the building's upgrade chain
+  back to tier 1 (`Pharmacy_t3 → t2 → t1 = t_b_apothecary`).
 - Marker art is generated at runtime (no bundled images): a semi-transparent pixel-art parchment tag with an
   ink border, drop shadow and a pointer whose tip marks the exact position. NPC portraits (`portrait_icon_*`,
   full-figure ~31x48 px) are read back from the atlas, the blue outline key is recolored to ink, and a
@@ -130,5 +133,6 @@ MapMarkersApi.RegisterProvider(new MyProvider());
 ## Known limitations
 
 - Early preview: marker rendering has been seen in game, but the category rules have not all been checked in game yet.
-- Name labels appear on mouse hover; with a gamepad set `Labels = Always`.
+- Gamepad: markers are selected by hit-testing the map's virtual cursor against the tag rectangles (the game
+  itself uses 2D trigger colliders for milestones); the cursor frame snaps onto the selected tag and its label shows.
 - Sprites that are tight-packed or rotated in an atlas cannot be read back and fall back to a gem glyph.

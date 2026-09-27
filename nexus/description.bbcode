@@ -8,7 +8,8 @@ Open the map and see where everyone is right now. Every named NPC gets a small p
 [*][b]Live NPC positions[/b]: markers update while the map is open, using the same projection as the game's own player icon, so they line up with the map art.
 [*][b]Portrait busts[/b]: the game's NPC portraits are cropped to a head-and-shoulders bust automatically; the blue outline is re-inked to match the map.
 [*][b]Retro look[/b]: semi-transparent parchment tags with an ink border, drop shadow and a pointer tip, rendered as crisp pixel art at a configurable pixel size. No image files are shipped; all art is generated at runtime.
-[*][b]Names on hover[/b]: in the game's language, or always shown, or hidden.
+[*][b]Names on hover[/b]: in the game's language, or always shown, or hidden. Works with a gamepad too: move the map cursor onto a marker and it snaps on and shows the name.
+[*][b]Town vendors[/b]: the shops you build in town get a marker with the vendor's portrait; hover to see the vendor type (Apothecary, Baker, ...).
 [*][b]No pile-ups[/b]: NPCs standing close together, or inside the same building, are spread side by side, with an ink line to where each one really is.
 [*][b]Fog of war respected[/b]: unexplored areas still cover markers.
 [*][b]Points of interest[/b], each switchable in the Mods menu:
@@ -46,6 +47,7 @@ When you update, saved category rules that still equal an older default are upgr
 [list]
 [*][b]General[/b]: refresh interval, pixel size (screen pixels per art pixel; raise it for bigger markers), parchment opacity, spread overlapping markers
 [*][b]NPC[/b]: on/off, named NPCs only or all NPCs, name labels, scale, portraits, head-only portraits, excluded NPC ids
+[*][b]Town vendors[/b]: on/off, labels, scale, head-only portraits
 [*][b]Each category[/b]: on/off, match rules, color, icon (pickaxe, fish, pillar, cave, ladder, coin, cross, star, gem), scale, labels
 [*][b]Advanced[/b]: Ctrl+F9 writes every world-object id of the loaded save to [font=Courier New]BepInEx/MapMarkers_wgo_dump.txt[/font], so you can write your own rules
 [/list]
@@ -56,7 +58,6 @@ Rule syntax: [font=Courier New]id:x[/font], [font=Courier New]prefix:x[/font], [
 [*]Built for Steam build 25467846. Re-checked on build 25533739: none of the game code this mod uses changed.
 [*]The mod does not require a known game build, so it keeps running after game updates. If a future update renames what it relies on, markers simply don't appear and an error is logged; the game does not crash.
 [*]Not tested together with other map mods such as [url=https://www.nexusmods.com/graveyardkeeper2/mods/127]Interactive map[/url] or [url=https://www.nexusmods.com/graveyardkeeper2/mods/140]Map Click Teleport[/url]. With name labels set to Hover, a marker catches the mouse over its own small area, so a double-click exactly on a marker may not reach the map underneath. Set Labels to Always or Never to let clicks through.
-[*]Gamepad: hover labels need a mouse. With a controller, set Labels to Always.
 [/list]
 
 [size=4][b]KNOWN LIMITATIONS[/b][/size]

@@ -9,6 +9,8 @@ First public release.
 - Places NPCs inside interiors at the building's map anchor.
 - Spreads overlapping markers side by side, with ink leader lines to their real positions.
 - Name labels stay visible while hovering (the layout pauses under the pointer).
+- Town vendors you built are marked with the vendor's portrait; the label shows the vendor type.
+- Gamepad support: the map cursor selects markers, snaps onto them and shows their labels.
 - Point-of-interest categories, each switchable in the Mods menu:
   - On by default: ores & quarries, fishing spots (fish left, faded when empty), caves & descents, portals.
   - Off by default: teleport pillars, stones, doors & basements.

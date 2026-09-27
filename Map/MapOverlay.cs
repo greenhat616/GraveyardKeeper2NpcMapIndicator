@@ -4,6 +4,7 @@ using System.Reflection;
 using GK2.MapMarkers.Api;
 using GK2.MapMarkers.Providers;
 using HarmonyLib;
+using LazyBearTechnology;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -22,6 +23,7 @@ namespace GK2.MapMarkers.Map
 
         private static readonly FieldInfo MapRectField = AccessTools.Field(typeof(MapPageWidget), "mapRect");
         private static readonly FieldInfo PlayerIconField = AccessTools.Field(typeof(MapPageWidget), "playerIcon");
+        private static readonly FieldInfo VirtualCursorField = AccessTools.Field(typeof(MapPageWidget), "mapVirtualCursor");
         private static readonly List<MapOverlay> Instances = new List<MapOverlay>();
 
         private readonly Dictionary<string, MarkerView> activeViews = new Dictionary<string, MarkerView>();
@@ -50,6 +52,8 @@ namespace GK2.MapMarkers.Map
         private RectTransform leadersRoot;
         private RectTransform tagsRoot;
         private TMP_Text fontTemplate;
+        private MapVirtualCursor virtualCursor;
+        private MarkerView gamepadSelected;
         private float timer;
         private bool dirty = true;
 
@@ -102,6 +106,7 @@ namespace GK2.MapMarkers.Map
             widget = owner;
             mapRect = map;
             playerIcon = PlayerIconField?.GetValue(owner) as RectTransform;
+            virtualCursor = VirtualCursorField?.GetValue(owner) as MapVirtualCursor;
 
             container = (RectTransform)transform;
             container.SetParent(mapRect, false);
@@ -149,6 +154,8 @@ namespace GK2.MapMarkers.Map
 
         private void Update()
         {
+            UpdateGamepadSelection();
+
             // Hold the layout while a tag is hovered: re-spreading moving NPCs would slide the tag out from
             // under the pointer and hide its name.
             if (!dirty && IsAnyHovered())
@@ -160,6 +167,53 @@ namespace GK2.MapMarkers.Map
             {
                 Refresh();
             }
+        }
+
+        /// <summary>
+        /// With a gamepad the map uses a virtual cursor (MapVirtualCursor) instead of pointer events. The game selects
+        /// milestones through 2D trigger colliders; markers instead hit-test the cursor position against their tag
+        /// rectangles, then show the label and snap the cursor frame onto the tag like a milestone.
+        /// </summary>
+        private void UpdateGamepadSelection()
+        {
+            MarkerView hit = null;
+            if (virtualCursor != null && virtualCursor.isActiveAndEnabled && LazyInput.IsGamepadActive)
+            {
+                Vector3 cursorPosition = virtualCursor.transform.position;
+                // Topmost first: later siblings are drawn above earlier ones.
+                for (int i = tagsRoot.childCount - 1; i >= 0; i--)
+                {
+                    var tag = (RectTransform)tagsRoot.GetChild(i);
+                    if (!tag.gameObject.activeSelf)
+                    {
+                        continue;
+                    }
+                    Vector2 local = tag.InverseTransformPoint(cursorPosition);
+                    if (tag.rect.Contains(local))
+                    {
+                        hit = tag.GetComponent<MarkerView>();
+                        break;
+                    }
+                }
+            }
+
+            if (hit == gamepadSelected)
+            {
+                return;
+            }
+            if (gamepadSelected != null)
+            {
+                gamepadSelected.SetGamepadHover(false);
+            }
+            if (hit != null)
+            {
+                hit.SetGamepadHover(true);
+            }
+            if (virtualCursor != null && virtualCursor.isActiveAndEnabled)
+            {
+                virtualCursor.DoAnimationTo(hit != null ? hit.NavigationRect : null);
+            }
+            gamepadSelected = hit;
         }
 
         private bool IsAnyHovered()
@@ -370,6 +424,11 @@ namespace GK2.MapMarkers.Map
                 activeViews.Remove(key);
                 if (view != null)
                 {
+                    if (view == gamepadSelected)
+                    {
+                        gamepadSelected = null;
+                        virtualCursor?.DoAnimationTo(null);
+                    }
                     view.gameObject.SetActive(false);
                     pool.Push(view);
                 }

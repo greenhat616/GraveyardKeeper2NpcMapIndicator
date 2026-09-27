@@ -103,6 +103,13 @@ namespace GK2.MapMarkers
                 s.AddText("NPC", "Excluded", "npc_template, npc_goddess_statue", "Excluded ids",
                     "Comma-separated NPC definition ids that are never shown.", order: 6)));
 
+            builtInProviders.Add(new TownVendorProvider(
+                s.AddToggle("Town vendors", "Enabled", true, "Show town vendors",
+                    "Mark the vendor shops you built in town, with the vendor's portrait and type.", order: 0),
+                s.AddEnum("Town vendors", "Labels", MarkerLabelMode.Hover, "Labels", "When to show the vendor type.", order: 1),
+                s.AddFloatSlider("Town vendors", "Scale", 1f, 0.5f, 2f, "Marker scale", "Size multiplier for vendor markers.", step: 0.25f, order: 2),
+                s.AddToggle("Town vendors", "HeadOnly", true, "Head portraits", "Crop a head-and-shoulders bust from the vendor portrait.", order: 3)));
+
             // Other categories are pure configuration: rules match world-object definitions.
             for (int i = 0; i < BuiltInCategories.All.Count; i++)
             {
