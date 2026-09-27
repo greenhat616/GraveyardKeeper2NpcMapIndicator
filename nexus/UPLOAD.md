@@ -1,6 +1,18 @@
-# Nexus upload checklist — Map Markers 0.1.0
+# Nexus upload checklist — Map Markers
 
-Game page: https://www.nexusmods.com/games/graveyardkeeper2 → Upload a mod.
+Published as **NPC Map Marker**: https://www.nexusmods.com/graveyardkeeper2/mods/179
+
+## Releasing an update
+
+1. Bump `<Version>` in `GK2.MapMarkers.csproj` and `Plugin.PluginVersion` (semantic versioning; features → minor).
+2. Add a section to `nexus/CHANGELOG.md`.
+3. `pwsh -File package.ps1` → `dist/GK2.MapMarkers-<version>.zip`.
+4. Nexus → mod 179 → Manage files → upload the zip as a new **Main file** with the new version; archive the old one
+   (or upload it as an update of the previous file so Vortex offers the update). Paste the changelog section.
+5. Set the mod page version to the same number (the page still says `1`).
+6. Tag the commit: `git tag v<version> && git push --tags`.
+
+## First upload (done for 0.1.0)
 
 ## 1. Mod details
 
@@ -8,7 +20,7 @@ Game page: https://www.nexusmods.com/games/graveyardkeeper2 → Upload a mod.
 | --- | --- |
 | Name | `Map Markers - NPCs and Points of Interest` |
 | Author | `a632079` (must match the plugin metadata author) |
-| Version | `0.1.0` (matches `<Version>` in `GK2.MapMarkers.csproj` and `Plugin.PluginVersion`) |
+| Version | current `<Version>` in `GK2.MapMarkers.csproj` (must equal `Plugin.PluginVersion`) |
 | Category | **User Interface** (alternatives: Utilities) |
 | Language | English |
 | Brief overview (summary) | see below |

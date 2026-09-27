@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- New: town vendors you built are marked with the vendor's portrait; hover to see the vendor type (Apothecary, Baker, ...). Toggle and tune it in the new "Town vendors" settings section.
+- New: gamepad support. Move the map cursor onto a marker: the cursor frame snaps onto it and its name shows, like the teleport pillars.
+- Verified against Steam build 25533739.
+
 ## 0.1.0
 
 First public release.
@@ -9,8 +15,6 @@ First public release.
 - Places NPCs inside interiors at the building's map anchor.
 - Spreads overlapping markers side by side, with ink leader lines to their real positions.
 - Name labels stay visible while hovering (the layout pauses under the pointer).
-- Town vendors you built are marked with the vendor's portrait; the label shows the vendor type.
-- Gamepad support: the map cursor selects markers, snaps onto them and shows their labels.
 - Point-of-interest categories, each switchable in the Mods menu:
   - On by default: ores & quarries, fishing spots (fish left, faded when empty), caves & descents, portals.
   - Off by default: teleport pillars, stones, doors & basements.

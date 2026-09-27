@@ -1,5 +1,7 @@
 # GK2 Map Markers
 
+Nexus Mods: [NPC Map Marker](https://www.nexusmods.com/graveyardkeeper2/mods/179)
+
 Graveyard Keeper 2 BepInEx mod built on [GK2 Mod Framework](https://www.nexusmods.com/graveyardkeeper2/mods/42) (0.1.x).
 Draws NPCs on the world map (live position, portrait, name on hover) and provides an extensible marker
 system for future categories: mines, fishing spots, teleport pillars, cave entrances.
