@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0
+
+- New: markers are layered with the map's fog clouds. A marker in front of (south of) a cloud is drawn over it, so revealed places near the fog edge are no longer covered; markers inside or behind the fog stay hidden. Toggle: General > "Markers in front of distant fog".
+- New: "Show guards & mercenaries" (off by default) hides village, forest, bonfire and city guards and the barracks mercenaries. Herbert, the head of the guards, is always shown.
+- New: separate scales for main NPCs (with a reputation, default 1.25), other NPCs (0.85) and town vendors (0.85). Scale sliders now range 0.25-4 and accept typed values with two decimals.
+- Portrait markers now share one size before scaling, instead of depending on each portrait's crop.
+- Fixed: NPCs that the game leaves without a world zone (e.g. Herbert in the barracks) were missing; they now appear at their building's map point.
+- Ctrl+F9 dump now also lists every NPC instance, hidden ones included.
+
 ## 0.2.0
 
 - New: town vendors you built are marked with the vendor's portrait; hover to see the vendor type (Apothecary, Baker, ...). Toggle and tune it in the new "Town vendors" settings section.

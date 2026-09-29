@@ -18,7 +18,7 @@ namespace GK2.MapMarkers
     {
         public const string PluginGuid = "a632079.gk2.mapmarkers";
         public const string PluginName = "Map Markers";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.3.0";
 
         internal static Gk2ModLogger Log { get; set; }
         internal static MapMarkersSettings Settings { get; set; }
