@@ -25,10 +25,14 @@ namespace GK2.MapMarkers.Map
 
         private RectTransform navigationRect;
 
+        /// <summary>Range of the per-category "Marker scale" settings.</summary>
+        public const float MinScale = 0.25f;
+        public const float MaxScale = 4f;
+
         /// <summary>Tag size in map units for the given art, before it is applied.</summary>
         public static Vector2 GetSize(Sprite art, float unitsPerArtPixel, float scale)
         {
-            return art.rect.size * unitsPerArtPixel * Mathf.Max(0.25f, scale);
+            return art.rect.size * unitsPerArtPixel * Mathf.Max(MinScale, scale);
         }
 
         public static MarkerView Create(Transform parent, TMP_Text fontTemplate)

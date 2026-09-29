@@ -97,7 +97,7 @@ namespace GK2.MapMarkers
                 s.AddEnum("NPC", "Filter", NpcFilterMode.NamedOnly, "Which NPCs",
                     "NamedOnly: characters with a portrait or reputation. AllNpc: every npc_* object (citizens, guards, ...).", order: 1),
                 s.AddEnum("NPC", "Labels", MarkerLabelMode.Hover, "Name labels", "When to show NPC names.", order: 2),
-                s.AddFloatSlider("NPC", "Scale", 1f, 0.5f, 2f, "Marker scale", "Size multiplier for NPC markers.", step: 0.25f, order: 3),
+                AddMarkerScale(s, "NPC", "Size multiplier for NPC markers.", order: 3),
                 s.AddToggle("NPC", "Portraits", true, "Show portraits", "Draw the NPC portrait inside the marker.", order: 4),
                 s.AddToggle("NPC", "HeadOnly", true, "Head portraits", "Crop a head-and-shoulders bust from the full-figure portrait.", order: 5),
                 s.AddText("NPC", "Excluded", "npc_template, npc_goddess_statue", "Excluded ids",
@@ -107,7 +107,7 @@ namespace GK2.MapMarkers
                 s.AddToggle("Town vendors", "Enabled", true, "Show town vendors",
                     "Mark the vendor shops you built in town, with the vendor's portrait and type.", order: 0),
                 s.AddEnum("Town vendors", "Labels", MarkerLabelMode.Hover, "Labels", "When to show the vendor type.", order: 1),
-                s.AddFloatSlider("Town vendors", "Scale", 1f, 0.5f, 2f, "Marker scale", "Size multiplier for vendor markers.", step: 0.25f, order: 2),
+                AddMarkerScale(s, "Town vendors", "Size multiplier for vendor markers.", order: 2),
                 s.AddToggle("Town vendors", "HeadOnly", true, "Head portraits", "Crop a head-and-shoulders bust from the vendor portrait.", order: 3)));
 
             // Other categories are pure configuration: rules match world-object definitions.
@@ -123,6 +123,19 @@ namespace GK2.MapMarkers
 
             s.AddReadOnly("Status", "Summary", "Active categories", "Enabled marker providers.", Describe, order: 0);
             Plugin.Log.Info("MAP_MARKERS_REGISTERED");
+        }
+
+        /// <summary>
+        /// Wide-range scale slider. The Mods menu pairs every slider with a numeric box and snaps typed values to
+        /// the step, so a 0.01 step keeps values such as 1.3 exactly as entered.
+        /// </summary>
+        private static ConfigEntry<float> AddMarkerScale(Gk2Settings s, string section, string description, int order)
+        {
+            ConfigEntry<float> scale = s.AddFloatSlider(section, "Scale", 1f, MarkerView.MinScale, MarkerView.MaxScale, "Marker scale",
+                description + FormattableString.Invariant($" Drag the slider or type a value ({MarkerView.MinScale}-{MarkerView.MaxScale})."),
+                step: 0.01f, order: order);
+            scale.SettingChanged += (_, __) => MapMarkersApi.RequestRefresh();
+            return scale;
         }
 
         private void AddRuleCategory(Gk2Settings s, RuleCategory category, int sortOrder)
