@@ -46,6 +46,7 @@ namespace GK2.MapMarkers
         public ConfigEntry<int> PixelSize;
         public ConfigEntry<float> PaperOpacity;
         public ConfigEntry<bool> SpreadOverlapping;
+        public ConfigEntry<bool> CloudDepthSort;
         public ConfigEntry<KeyboardShortcut> DumpKey;
     }
 
@@ -86,6 +87,10 @@ namespace GK2.MapMarkers
                     "Parchment opacity", "Opacity of the parchment tag behind icons.", step: 0.05f, order: 2),
                 SpreadOverlapping = s.AddToggle("General", "SpreadOverlapping", true,
                     "Spread overlapping markers", "Lay out overlapping markers side by side with ink lines to their real position.", order: 3),
+                CloudDepthSort = s.AddToggle("General", "CloudDepthSort", true,
+                    "Markers in front of distant fog",
+                    "Draw a marker over a fog cloud that lies behind (north of) it, the way the map layers its own clouds. Markers inside or behind the fog stay covered.",
+                    order: 4),
                 DumpKey = s.AddKeybind("Advanced", "DumpWgoIds", new KeyboardShortcut(KeyCode.F9, KeyCode.LeftControl),
                     "Dump world object ids",
                     "Writes every world object id / group / interaction type to BepInEx/MapMarkers_wgo_dump.txt. Use it to write category rules.",
@@ -97,17 +102,22 @@ namespace GK2.MapMarkers
                 s.AddEnum("NPC", "Filter", NpcFilterMode.NamedOnly, "Which NPCs",
                     "NamedOnly: characters with a portrait or reputation. AllNpc: every npc_* object (citizens, guards, ...).", order: 1),
                 s.AddEnum("NPC", "Labels", MarkerLabelMode.Hover, "Name labels", "When to show NPC names.", order: 2),
-                AddMarkerScale(s, "NPC", "Size multiplier for NPC markers.", order: 3),
-                s.AddToggle("NPC", "Portraits", true, "Show portraits", "Draw the NPC portrait inside the marker.", order: 4),
-                s.AddToggle("NPC", "HeadOnly", true, "Head portraits", "Crop a head-and-shoulders bust from the full-figure portrait.", order: 5),
+                AddMarkerScale(s, "NPC", "MainScale", 1.25f, "Main NPC scale",
+                    "Size multiplier for NPCs with a reputation (story characters such as Herbert).", order: 3),
+                AddMarkerScale(s, "NPC", "MinorScale", 0.85f, "Other NPC scale",
+                    "Size multiplier for NPCs without a reputation (guards, mercenaries, citizens).", order: 4),
+                s.AddToggle("NPC", "Portraits", true, "Show portraits", "Draw the NPC portrait inside the marker.", order: 5),
+                s.AddToggle("NPC", "HeadOnly", true, "Head portraits", "Crop a head-and-shoulders bust from the full-figure portrait.", order: 6),
+                s.AddToggle("NPC", "ShowGuards", false, "Show guards & mercenaries",
+                    "Mark village, forest, bonfire and city guards and the barracks mercenaries. Herbert, the head of the guards, is always shown.", order: 7),
                 s.AddText("NPC", "Excluded", "npc_template, npc_goddess_statue", "Excluded ids",
-                    "Comma-separated NPC definition ids that are never shown.", order: 6)));
+                    "Comma-separated NPC definition ids that are never shown.", order: 8)));
 
             builtInProviders.Add(new TownVendorProvider(
                 s.AddToggle("Town vendors", "Enabled", true, "Show town vendors",
                     "Mark the vendor shops you built in town, with the vendor's portrait and type.", order: 0),
                 s.AddEnum("Town vendors", "Labels", MarkerLabelMode.Hover, "Labels", "When to show the vendor type.", order: 1),
-                AddMarkerScale(s, "Town vendors", "Size multiplier for vendor markers.", order: 2),
+                AddMarkerScale(s, "Town vendors", "MarkerScale", 0.85f, "Marker scale", "Size multiplier for vendor markers.", order: 2),
                 s.AddToggle("Town vendors", "HeadOnly", true, "Head portraits", "Crop a head-and-shoulders bust from the vendor portrait.", order: 3)));
 
             // Other categories are pure configuration: rules match world-object definitions.
@@ -119,6 +129,7 @@ namespace GK2.MapMarkers
             Plugin.Settings.PaperOpacity.SettingChanged += (_, __) => ApplyArtSettings();
             Plugin.Settings.PixelSize.SettingChanged += (_, __) => MapMarkersApi.RequestRefresh();
             Plugin.Settings.SpreadOverlapping.SettingChanged += (_, __) => MapMarkersApi.RequestRefresh();
+            Plugin.Settings.CloudDepthSort.SettingChanged += (_, __) => MapMarkersApi.RequestRefresh();
             ApplyArtSettings();
 
             s.AddReadOnly("Status", "Summary", "Active categories", "Enabled marker providers.", Describe, order: 0);
@@ -129,9 +140,10 @@ namespace GK2.MapMarkers
         /// Wide-range scale slider. The Mods menu pairs every slider with a numeric box and snaps typed values to
         /// the step, so a 0.01 step keeps values such as 1.3 exactly as entered.
         /// </summary>
-        private static ConfigEntry<float> AddMarkerScale(Gk2Settings s, string section, string description, int order)
+        private static ConfigEntry<float> AddMarkerScale(Gk2Settings s, string section, string key, float value, string name,
+            string description, int order)
         {
-            ConfigEntry<float> scale = s.AddFloatSlider(section, "Scale", 1f, MarkerView.MinScale, MarkerView.MaxScale, "Marker scale",
+            ConfigEntry<float> scale = s.AddFloatSlider(section, key, value, MarkerView.MinScale, MarkerView.MaxScale, name,
                 description + FormattableString.Invariant($" Drag the slider or type a value ({MarkerView.MinScale}-{MarkerView.MaxScale})."),
                 step: 0.01f, order: order);
             scale.SettingChanged += (_, __) => MapMarkersApi.RequestRefresh();

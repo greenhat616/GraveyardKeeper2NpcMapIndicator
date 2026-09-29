@@ -14,16 +14,24 @@ namespace GK2.MapMarkers.Map
     /// <summary>
     /// Lives under MapPageWidget's map rect. Rebuilds markers when the map is redrawn and then
     /// periodically while it stays open, so moving NPCs are tracked live.
+    /// <para>
+    /// Fog clouds are UISortComponents under the widget's UIHierarchySorter, drawn back to front by their floor line
+    /// (y + FloorLine). Tags normally sit below all clouds; a tag whose tip is in front of (south of) every cloud it
+    /// overlaps moves to a second layer above the clouds, so revealed places are not hidden by fog from the north.
+    /// </para>
     /// </summary>
     internal sealed class MapOverlay : MonoBehaviour
     {
         private const string ObjectName = "GK2MapMarkersOverlay";
+        private const string FrontObjectName = "GK2MapMarkersFront";
         private const float ClusterGapPixels = 1f;   // in art pixels
         private const float ClusterLiftPixels = 6f;  // in art pixels
 
         private static readonly FieldInfo MapRectField = AccessTools.Field(typeof(MapPageWidget), "mapRect");
         private static readonly FieldInfo PlayerIconField = AccessTools.Field(typeof(MapPageWidget), "playerIcon");
         private static readonly FieldInfo VirtualCursorField = AccessTools.Field(typeof(MapPageWidget), "mapVirtualCursor");
+        private static readonly FieldInfo HierarchySorterField = AccessTools.Field(typeof(MapPageWidget), "hierarchySorter");
+        private static readonly Vector3[] CornerBuffer = new Vector3[4];
         private static readonly List<MapOverlay> Instances = new List<MapOverlay>();
 
         private readonly Dictionary<string, MarkerView> activeViews = new Dictionary<string, MarkerView>();
@@ -36,6 +44,15 @@ namespace GK2.MapMarkers.Map
         private readonly List<LeaderView> leaders = new List<LeaderView>();
         private readonly List<MarkerDeclutter.Item> placements = new List<MarkerDeclutter.Item>();
         private readonly List<Entry> entries = new List<Entry>();
+        private readonly List<Cloud> clouds = new List<Cloud>();
+        private readonly List<UISortComponent> sortBuffer = new List<UISortComponent>();
+        private readonly List<Graphic> graphicBuffer = new List<Graphic>();
+
+        private struct Cloud
+        {
+            public Rect Bounds;
+            public float FloorY;
+        }
 
         private sealed class Entry
         {
@@ -51,6 +68,9 @@ namespace GK2.MapMarkers.Map
         private RectTransform container;
         private RectTransform leadersRoot;
         private RectTransform tagsRoot;
+        private RectTransform frontContainer;
+        private RectTransform frontTagsRoot;
+        private RectTransform cloudsRoot;
         private TMP_Text fontTemplate;
         private MapVirtualCursor virtualCursor;
         private MarkerView gamepadSelected;
@@ -107,14 +127,19 @@ namespace GK2.MapMarkers.Map
             mapRect = map;
             playerIcon = PlayerIconField?.GetValue(owner) as RectTransform;
             virtualCursor = VirtualCursorField?.GetValue(owner) as MapVirtualCursor;
+            cloudsRoot = (HierarchySorterField?.GetValue(owner) as UIHierarchySorter)?.HierarchyTarget;
 
             container = (RectTransform)transform;
-            container.SetParent(mapRect, false);
-            container.anchorMin = container.anchorMax = container.pivot = new Vector2(0.5f, 0.5f);
-            container.anchoredPosition = Vector2.zero;
+            SetUpContainer(container, mapRect);
             // Leader lines are drawn below all tags.
-            leadersRoot = CreateLayer("Leaders");
-            tagsRoot = CreateLayer("Tags");
+            leadersRoot = CreateLayer(container, "Leaders");
+            tagsRoot = CreateLayer(container, "Tags");
+
+            var front = new GameObject(FrontObjectName, typeof(RectTransform));
+            front.layer = gameObject.layer;
+            frontContainer = (RectTransform)front.transform;
+            SetUpContainer(frontContainer, mapRect);
+            frontTagsRoot = CreateLayer(frontContainer, "Tags");
 
             foreach (TMP_Text text in owner.GetComponentsInChildren<TMP_Text>(true))
             {
@@ -126,12 +151,19 @@ namespace GK2.MapMarkers.Map
             }
         }
 
-        private RectTransform CreateLayer(string name)
+        private static void SetUpContainer(RectTransform rect, RectTransform parent)
+        {
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+        }
+
+        private RectTransform CreateLayer(RectTransform parent, string name)
         {
             var go = new GameObject(name, typeof(RectTransform));
             go.layer = gameObject.layer;
             var layer = (RectTransform)go.transform;
-            layer.SetParent(container, false);
+            layer.SetParent(parent, false);
             layer.anchorMin = layer.anchorMax = layer.pivot = new Vector2(0.5f, 0.5f);
             layer.anchoredPosition = Vector2.zero;
             layer.sizeDelta = Vector2.zero;
@@ -150,6 +182,10 @@ namespace GK2.MapMarkers.Map
         private void OnDestroy()
         {
             Instances.Remove(this);
+            if (frontContainer != null)
+            {
+                Destroy(frontContainer.gameObject);
+            }
         }
 
         private void Update()
@@ -180,21 +216,7 @@ namespace GK2.MapMarkers.Map
             if (virtualCursor != null && virtualCursor.isActiveAndEnabled && LazyInput.IsGamepadActive)
             {
                 Vector3 cursorPosition = virtualCursor.transform.position;
-                // Topmost first: later siblings are drawn above earlier ones.
-                for (int i = tagsRoot.childCount - 1; i >= 0; i--)
-                {
-                    var tag = (RectTransform)tagsRoot.GetChild(i);
-                    if (!tag.gameObject.activeSelf)
-                    {
-                        continue;
-                    }
-                    Vector2 local = tag.InverseTransformPoint(cursorPosition);
-                    if (tag.rect.Contains(local))
-                    {
-                        hit = tag.GetComponent<MarkerView>();
-                        break;
-                    }
-                }
+                hit = HitTest(frontTagsRoot, cursorPosition) ?? HitTest(tagsRoot, cursorPosition);
             }
 
             if (hit == gamepadSelected)
@@ -214,6 +236,25 @@ namespace GK2.MapMarkers.Map
                 virtualCursor.DoAnimationTo(hit != null ? hit.NavigationRect : null);
             }
             gamepadSelected = hit;
+        }
+
+        private static MarkerView HitTest(RectTransform layer, Vector3 worldPosition)
+        {
+            // Topmost first: later siblings are drawn above earlier ones.
+            for (int i = layer.childCount - 1; i >= 0; i--)
+            {
+                var tag = (RectTransform)layer.GetChild(i);
+                if (!tag.gameObject.activeSelf)
+                {
+                    continue;
+                }
+                Vector2 local = tag.InverseTransformPoint(worldPosition);
+                if (tag.rect.Contains(local))
+                {
+                    return tag.GetComponent<MarkerView>();
+                }
+            }
+            return null;
         }
 
         private bool IsAnyHovered()
@@ -247,9 +288,12 @@ namespace GK2.MapMarkers.Map
             }
 
             container.sizeDelta = mapRect.sizeDelta;
+            frontContainer.sizeDelta = mapRect.sizeDelta;
             CollectMarkers();
+            CollectClouds();
             Layout(projection);
             KeepPlayerOnTop();
+            KeepFrontAboveClouds();
         }
 
         private void CollectMarkers()
@@ -345,6 +389,12 @@ namespace GK2.MapMarkers.Map
                 }
                 labelModes.TryGetValue(entry.Marker.CategoryId, out MarkerLabelMode mode);
                 view.Apply(entry.Marker, entry.Art, mode, entry.Placement.Tip, pixel);
+                // Both layers share one coordinate frame, so the anchored position survives the move.
+                Transform layer = IsInFrontOfClouds(view) ? frontTagsRoot : tagsRoot;
+                if (view.transform.parent != layer)
+                {
+                    view.transform.SetParent(layer, false);
+                }
                 view.transform.SetAsLastSibling(); // keeps the sort above as draw order
                 if (view.IsHovered)
                 {
@@ -372,6 +422,75 @@ namespace GK2.MapMarkers.Map
             }
 
             ReleaseUnseen();
+        }
+
+        /// <summary>Active fog clouds with their world bounds and floor line, as UIHierarchySorter orders them.</summary>
+        private void CollectClouds()
+        {
+            clouds.Clear();
+            if (cloudsRoot == null || !Plugin.Settings.CloudDepthSort.Value)
+            {
+                return;
+            }
+            cloudsRoot.GetComponentsInChildren(false, sortBuffer);
+            foreach (UISortComponent sort in sortBuffer)
+            {
+                if (TryGetWorldBounds(sort.transform, out Rect bounds))
+                {
+                    clouds.Add(new Cloud { Bounds = bounds, FloorY = sort.transform.position.y + sort.FloorLine });
+                }
+            }
+        }
+
+        private bool TryGetWorldBounds(Transform root, out Rect bounds)
+        {
+            bool any = false;
+            float xMin = float.MaxValue, yMin = float.MaxValue, xMax = float.MinValue, yMax = float.MinValue;
+            root.GetComponentsInChildren(false, graphicBuffer);
+            foreach (Graphic graphic in graphicBuffer)
+            {
+                if (!graphic.enabled)
+                {
+                    continue;
+                }
+                graphic.rectTransform.GetWorldCorners(CornerBuffer);
+                xMin = Mathf.Min(xMin, CornerBuffer[0].x);
+                yMin = Mathf.Min(yMin, CornerBuffer[0].y);
+                xMax = Mathf.Max(xMax, CornerBuffer[2].x);
+                yMax = Mathf.Max(yMax, CornerBuffer[2].y);
+                any = true;
+            }
+            bounds = any ? Rect.MinMaxRect(xMin, yMin, xMax, yMax) : default;
+            return any;
+        }
+
+        /// <summary>
+        /// True when the tag overlaps a cloud and its tip is in front of every cloud it overlaps. A tag that touches no
+        /// cloud stays in the lower layer so the player icon keeps drawing above it.
+        /// </summary>
+        private bool IsInFrontOfClouds(MarkerView view)
+        {
+            if (clouds.Count == 0)
+            {
+                return false;
+            }
+            Rect tag = view.GetWorldRect();
+            float floorY = view.transform.position.y;
+            bool overlaps = false;
+            foreach (Cloud cloud in clouds)
+            {
+                if (!cloud.Bounds.Overlaps(tag))
+                {
+                    continue;
+                }
+                // UIHierarchySorter draws higher floor lines first; ties stay behind the cloud.
+                if (cloud.FloorY <= floorY)
+                {
+                    return false;
+                }
+                overlaps = true;
+            }
+            return overlaps;
         }
 
         private static Sprite GetArt(MapMarker marker)
@@ -442,6 +561,26 @@ namespace GK2.MapMarkers.Map
             foreach (LeaderView leader in leaders)
             {
                 leader.gameObject.SetActive(false);
+            }
+        }
+
+        /// <summary>The front layer sits directly above the cloud layer, which the game re-sends to the end on redraw.</summary>
+        private void KeepFrontAboveClouds()
+        {
+            if (cloudsRoot == null || cloudsRoot.parent != frontContainer.parent)
+            {
+                frontContainer.SetAsLastSibling();
+                return;
+            }
+            int cloudIndex = cloudsRoot.GetSiblingIndex();
+            int frontIndex = frontContainer.GetSiblingIndex();
+            if (frontIndex < cloudIndex)
+            {
+                frontContainer.SetSiblingIndex(cloudIndex);
+            }
+            else if (frontIndex > cloudIndex + 1)
+            {
+                frontContainer.SetSiblingIndex(cloudIndex + 1);
             }
         }
 

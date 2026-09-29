@@ -25,6 +25,15 @@ namespace GK2.MapMarkers.Map
 
         private RectTransform navigationRect;
 
+        private static readonly Vector3[] CornerBuffer = new Vector3[4];
+
+        /// <summary>The tag's world-space rectangle (x/y only), for depth tests against the map's fog clouds.</summary>
+        public Rect GetWorldRect()
+        {
+            rect.GetWorldCorners(CornerBuffer);
+            return Rect.MinMaxRect(CornerBuffer[0].x, CornerBuffer[0].y, CornerBuffer[2].x, CornerBuffer[2].y);
+        }
+
         /// <summary>Range of the per-category "Marker scale" settings.</summary>
         public const float MinScale = 0.25f;
         public const float MaxScale = 4f;
@@ -32,7 +41,7 @@ namespace GK2.MapMarkers.Map
         /// <summary>Tag size in map units for the given art, before it is applied.</summary>
         public static Vector2 GetSize(Sprite art, float unitsPerArtPixel, float scale)
         {
-            return art.rect.size * unitsPerArtPixel * Mathf.Max(MinScale, scale);
+            return art.rect.size * unitsPerArtPixel * MarkerArt.SizeFactor(art) * Mathf.Max(MinScale, scale);
         }
 
         public static MarkerView Create(Transform parent, TMP_Text fontTemplate)

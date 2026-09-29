@@ -53,10 +53,46 @@ namespace GK2.MapMarkers.Diagnostics
                   .Append(r.Group).Append('\t').Append(r.Portrait).Append('\t').Append(r.Name).Append('\t')
                   .AppendLine(r.Sample);
             }
+            AppendNpcInstances(sb);
 
             string path = Path.Combine(Paths.BepInExRootPath, "MapMarkers_wgo_dump.txt");
             File.WriteAllText(path, sb.ToString(), new UTF8Encoding(false));
             Plugin.Log?.Info($"Wrote {rows.Count} WGO definitions to {path}");
+        }
+
+        /// <summary>Every npc_* object, hidden ones included, to explain why a character has no marker.</summary>
+        private static void AppendNpcInstances(StringBuilder sb)
+        {
+            WorldData world = MainGame.Instance?.GameSave?.worldData;
+            if (world == null)
+            {
+                return;
+            }
+            sb.AppendLine();
+            sb.AppendLine("# NPC instances");
+            sb.AppendLine("# id\thidden\tportrait\tlocalized_name\tposition\tscene\tzone");
+            foreach (GameSceneData scene in world.gameSceneDataList)
+            {
+                if (scene?.wgoDataList == null)
+                {
+                    continue;
+                }
+                foreach (WgoData wgo in scene.wgoDataList)
+                {
+                    if (wgo?.id == null || !wgo.id.StartsWith("npc_", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                    WGODef def = wgo.Definition;
+                    sb.Append(wgo.id).Append('\t')
+                      .Append(wgo.IsHidden ? "hidden" : string.Empty).Append('\t')
+                      .Append(string.IsNullOrEmpty(def?.portrait) ? string.Empty : def.portrait).Append('\t')
+                      .Append(WgoUtil.Localize(wgo.id)).Append('\t')
+                      .Append($"{wgo.Position.x:0.#},{wgo.Position.y:0.#},{wgo.Position.z:0.#}").Append('\t')
+                      .Append(wgo.WorldId).Append('\t')
+                      .AppendLine(WgoUtil.GetWorldZoneId(wgo));
+                }
+            }
         }
     }
 }

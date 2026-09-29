@@ -18,13 +18,19 @@ namespace GK2.MapMarkers.Providers
     internal sealed class NpcMarkerProvider : IMapMarkerProvider
     {
         private const string NpcPrefix = "npc_";
+        // Rank-and-file soldiers: village/forest/bonfire/city guards and the citizen patrols all have "_guard" in their
+        // id; the barracks mercenaries (npc_town_barracks_mercenary_*) have "_mercenary".
+        private static readonly string[] GuardMarkers = { "_guard", "_mercenary" };
+        private const string GuardCaptainId = "npc_head_of_the_guards";
 
         private readonly ConfigEntry<bool> enabled;
         private readonly ConfigEntry<NpcFilterMode> filter;
         private readonly ConfigEntry<MarkerLabelMode> labelMode;
-        private readonly ConfigEntry<float> scale;
+        private readonly ConfigEntry<float> mainScale;
+        private readonly ConfigEntry<float> minorScale;
         private readonly ConfigEntry<bool> showPortraits;
         private readonly ConfigEntry<bool> headOnly;
+        private readonly ConfigEntry<bool> showGuards;
         private readonly ConfigEntry<string> excluded;
 
         // def id -> include? Cleared whenever a filter setting changes.
@@ -37,20 +43,25 @@ namespace GK2.MapMarkers.Providers
             ConfigEntry<bool> enabled,
             ConfigEntry<NpcFilterMode> filter,
             ConfigEntry<MarkerLabelMode> labelMode,
-            ConfigEntry<float> scale,
+            ConfigEntry<float> mainScale,
+            ConfigEntry<float> minorScale,
             ConfigEntry<bool> showPortraits,
             ConfigEntry<bool> headOnly,
+            ConfigEntry<bool> showGuards,
             ConfigEntry<string> excluded)
         {
             this.enabled = enabled;
             this.filter = filter;
             this.labelMode = labelMode;
-            this.scale = scale;
+            this.mainScale = mainScale;
+            this.minorScale = minorScale;
             this.showPortraits = showPortraits;
             this.headOnly = headOnly;
+            this.showGuards = showGuards;
             this.excluded = excluded;
 
             filter.SettingChanged += (_, __) => Invalidate();
+            showGuards.SettingChanged += (_, __) => Invalidate();
             excluded.SettingChanged += (_, __) => Invalidate();
             Invalidate();
         }
@@ -87,7 +98,8 @@ namespace GK2.MapMarkers.Providers
                     Icon = portrait,
                     IconIsPortrait = portrait != null && headOnly.Value,
                     Color = NpcColor,
-                    Scale = scale.Value,
+                    // Characters with a reputation bar are the story cast; everyone else is background.
+                    Scale = string.IsNullOrEmpty(def.repResName) ? minorScale.Value : mainScale.Value,
                     Label = WgoUtil.Localize(def.id),
                     SortOrder = portrait != null ? 20 : 10
                 });
@@ -103,11 +115,29 @@ namespace GK2.MapMarkers.Providers
 
             bool result = def.id.StartsWith(NpcPrefix, StringComparison.OrdinalIgnoreCase)
                 && !excludedIds.Contains(def.id)
+                && (showGuards.Value || !IsGuard(def.id))
                 && (filter.Value == NpcFilterMode.AllNpc
                     || !string.IsNullOrEmpty(def.portrait)
                     || !string.IsNullOrEmpty(def.repResName));
             classification[def.id] = result;
             return result;
+        }
+
+        /// <summary>A common guard or mercenary; the head of the guards (Herbert) is a named character and never counts.</summary>
+        private static bool IsGuard(string id)
+        {
+            if (string.Equals(id, GuardCaptainId, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            foreach (string marker in GuardMarkers)
+            {
+                if (id.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void Invalidate()

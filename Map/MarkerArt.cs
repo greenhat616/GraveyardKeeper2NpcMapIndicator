@@ -21,7 +21,14 @@ namespace GK2.MapMarkers.Map
         private const int Padding = 3;       // border + inner margin around the content
         private const int PointerHeight = 4;
 
+        /// <summary>
+        /// Body width, in art pixels, that every portrait tag is drawn at. Busts crop to different sizes per portrait
+        /// (Herbert's came out much smaller than the mercenaries'), so portrait tags are normalized to this width.
+        /// </summary>
+        private const int PortraitBodyPixels = 32;
+
         private static readonly Dictionary<string, Sprite> cache = new Dictionary<string, Sprite>();
+        private static readonly HashSet<Sprite> portraitTags = new HashSet<Sprite>();
 
         /// <summary>Parchment alpha 0..1; changing it invalidates the cache.</summary>
         public static float PaperOpacity { get; private set; } = 0.8f;
@@ -54,8 +61,19 @@ namespace GK2.MapMarkers.Map
                 }
             }
             sprite = content != null ? BuildTag(content, key.GetHashCode()) : null;
+            if (sprite != null)
+            {
+                portraitTags.Add(sprite);
+            }
             cache[key] = sprite;
             return sprite;
+        }
+
+        /// <summary>Size multiplier that brings a portrait tag to the common portrait width; 1 for glyph tags.</summary>
+        public static float SizeFactor(Sprite art)
+        {
+            // The sprite is one pixel wider than the body because of the drop shadow.
+            return portraitTags.Contains(art) ? PortraitBodyPixels / (art.rect.width - 1f) : 1f;
         }
 
         public static Sprite ForGlyph(MarkerGlyph glyph, Color color)
@@ -81,6 +99,7 @@ namespace GK2.MapMarkers.Map
                 }
             }
             cache.Clear();
+            portraitTags.Clear();
         }
 
         private static Sprite BuildTag(PixelImage content, int seed)
